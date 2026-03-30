@@ -48,3 +48,8 @@
 - Community post and comment
 - Curated assistant answer entry
 
+## Persistence
+
+- `MongoDB` is the primary database
+- `Prisma` is the backend ORM and schema source of truth
+- The Prisma schema lives in `backend/prisma/schema.prisma`

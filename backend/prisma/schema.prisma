@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  parent
+  caregiver
+  moderator
+  admin
+}
+
+enum LessonStatus {
+  draft
+  published
+}
+
+enum CommunityCategory {
+  communication
+  behavior
+  daily_life
+  school
+  general
+}
+
+enum CommunityContentType {
+  text
+  voice
+}
+
+enum ModerationStatus {
+  pending
+  approved
+  rejected
+}
+
+model User {
+  id                String          @id @default(auto()) @map("_id") @db.ObjectId
+  fullName          String
+  phone             String          @unique
+  passwordHash      String
+  preferredLanguage String          @default("am")
+  role              UserRole        @default(parent)
+  posts             CommunityPost[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+model LessonModule {
+  id           String       @id @default(auto()) @map("_id") @db.ObjectId
+  slug         String       @unique
+  title        String
+  titleAm      String
+  description  String
+  status       LessonStatus @default(draft)
+  offlineReady Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model CommunityPost {
+  id               String               @id @default(auto()) @map("_id") @db.ObjectId
+  authorId         String               @db.ObjectId
+  author           User                 @relation(fields: [authorId], references: [id])
+  category         CommunityCategory
+  contentType      CommunityContentType @default(text)
+  content          String
+  moderationStatus ModerationStatus     @default(pending)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+}
+
+model AssistantAnswer {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  questionKey      String   @unique
+  language         String   @default("am")
+  questionVariants String[]
+  answer           String
+  reviewedByExpert Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}

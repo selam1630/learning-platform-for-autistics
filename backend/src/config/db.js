@@ -1,11 +1,8 @@
-const mongoose = require("mongoose");
-
-const { env } = require("./env");
+const prisma = require("../lib/prisma");
 
 const connectDatabase = async () => {
-  await mongoose.connect(env.mongodbUri);
-  console.log("MongoDB connected");
+  await prisma.$connect();
+  console.log("Prisma connected to MongoDB");
 };
 
 module.exports = connectDatabase;
-

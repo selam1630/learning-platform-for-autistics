@@ -1,6 +1,7 @@
 const app = require("./app");
 const { env } = require("./config/env");
 const connectDatabase = require("./config/db");
+const prisma = require("./lib/prisma");
 
 const startServer = async () => {
   try {
@@ -15,5 +16,11 @@ const startServer = async () => {
   }
 };
 
-startServer();
+const shutdown = async () => {
+  await prisma.$disconnect();
+};
 
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
+
+startServer();
