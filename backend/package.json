@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
+    "mongo:rs:start": "bash scripts/start-local-mongo-rs.sh",
+    "mongo:rs:status": "mongosh --port 27018 --quiet --eval \"rs.status()\"",
     "seed": "node prisma/seed.js",
     "prisma:generate": "prisma generate",
     "prisma:db:push": "prisma db push",
