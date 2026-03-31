@@ -63,32 +63,60 @@ const assistantAnswers = [
 ];
 
 const seed = async () => {
-  const parentUser = await prisma.user.upsert({
-    where: { phone: "+251911000001" },
-    update: {},
-    create: {
-      fullName: "Selam Parent",
-      phone: "+251911000001",
-      passwordHash: "demo-password-hash",
-      preferredLanguage: "am",
-      role: "parent",
-    },
+  const parentPhone = "+251911000001";
+  const existingParent = await prisma.user.findUnique({
+    where: { phone: parentPhone },
   });
 
+  const parentPayload = {
+    fullName: "Selam Parent",
+    phone: parentPhone,
+    passwordHash: "demo-password-hash",
+    preferredLanguage: "am",
+    role: "parent",
+  };
+
+  const parentUser = existingParent
+    ? await prisma.user.update({
+        where: { id: existingParent.id },
+        data: parentPayload,
+      })
+    : await prisma.user.create({
+        data: parentPayload,
+      });
+
   for (const module of lessonModules) {
-    await prisma.lessonModule.upsert({
+    const existingModule = await prisma.lessonModule.findUnique({
       where: { slug: module.slug },
-      update: module,
-      create: module,
     });
+
+    if (existingModule) {
+      await prisma.lessonModule.update({
+        where: { id: existingModule.id },
+        data: module,
+      });
+    } else {
+      await prisma.lessonModule.create({
+        data: module,
+      });
+    }
   }
 
   for (const answer of assistantAnswers) {
-    await prisma.assistantAnswer.upsert({
+    const existingAnswer = await prisma.assistantAnswer.findUnique({
       where: { questionKey: answer.questionKey },
-      update: answer,
-      create: answer,
     });
+
+    if (existingAnswer) {
+      await prisma.assistantAnswer.update({
+        where: { id: existingAnswer.id },
+        data: answer,
+      });
+    } else {
+      await prisma.assistantAnswer.create({
+        data: answer,
+      });
+    }
   }
 
   const communityPosts = [

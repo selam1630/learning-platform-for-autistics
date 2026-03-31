@@ -5,6 +5,12 @@ const askAssistant = async (req, res, next) => {
     const question = (req.body.question || "").trim();
     const normalizedQuestion = question.toLowerCase();
 
+    if (!question) {
+      return res.status(400).json({
+        message: "A question is required.",
+      });
+    }
+
     const answers = await prisma.assistantAnswer.findMany({
       where: { reviewedByExpert: true },
       orderBy: { createdAt: "asc" },
