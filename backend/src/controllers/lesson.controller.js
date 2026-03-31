@@ -1,29 +1,18 @@
-const getModules = async (_req, res) => {
-  res.json({
-    modules: [
-      {
-        id: "communication-basics",
-        title: "Communication Basics",
-        titleAm: "መሰረታዊ ግንኙነት",
-        description: "First words, visuals, and simple responses.",
-      },
-      {
-        id: "emotions-social-skills",
-        title: "Emotions & Social Skills",
-        titleAm: "ስሜቶች እና ማህበራዊ ክህሎቶች",
-        description: "Recognizing emotions and everyday interactions.",
-      },
-      {
-        id: "daily-routines",
-        title: "Daily Routines",
-        titleAm: "ዕለታዊ ልምዶች",
-        description: "Eating, dressing, and hygiene routines.",
-      },
-    ],
-  });
+const prisma = require("../lib/prisma");
+
+const getModules = async (_req, res, next) => {
+  try {
+    const modules = await prisma.lessonModule.findMany({
+      where: { status: "published" },
+      orderBy: { createdAt: "asc" },
+    });
+
+    res.json({ modules });
+  } catch (error) {
+    next(error);
+  }
 };
 
 module.exports = {
   getModules,
 };
-

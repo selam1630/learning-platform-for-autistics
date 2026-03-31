@@ -1,16 +1,39 @@
-const askAssistant = async (req, res) => {
-  const { question } = req.body;
+const prisma = require("../lib/prisma");
 
-  res.json({
-    question,
-    answer:
-      "This is a placeholder expert-backed response. Next, we can map frequent caregiver questions to reviewed guidance.",
-    safetyNote:
-      "This assistant should support caregivers but not replace medical diagnosis or emergency care.",
-  });
+const askAssistant = async (req, res, next) => {
+  try {
+    const question = (req.body.question || "").trim();
+    const normalizedQuestion = question.toLowerCase();
+
+    const answers = await prisma.assistantAnswer.findMany({
+      where: { reviewedByExpert: true },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const match =
+      answers.find((item) =>
+        item.questionVariants.some((variant) =>
+          normalizedQuestion.includes(variant.toLowerCase().replace("?", ""))
+        )
+      ) ||
+      answers.find((item) =>
+        item.questionKey.split("-").some((part) => normalizedQuestion.includes(part))
+      ) ||
+      answers[0];
+
+    res.json({
+      question,
+      answer: match
+        ? match.answer
+        : "We do not have a reviewed answer yet. Please try a simpler question about communication, routines, or meltdowns.",
+      safetyNote:
+        "This assistant supports caregivers with general guidance and does not replace diagnosis, emergency care, or direct therapy.",
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 module.exports = {
   askAssistant,
 };
-

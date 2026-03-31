@@ -4,6 +4,7 @@ const authRoutes = require("./auth.routes");
 const lessonRoutes = require("./lesson.routes");
 const communityRoutes = require("./community.routes");
 const assistantRoutes = require("./assistant.routes");
+const dashboardRoutes = require("./dashboard.routes");
 
 const router = express.Router();
 
@@ -15,9 +16,9 @@ router.get("/health", (_req, res) => {
 });
 
 router.use("/auth", authRoutes);
+router.use("/dashboard", dashboardRoutes);
 router.use("/lessons", lessonRoutes);
 router.use("/community", communityRoutes);
 router.use("/assistant", assistantRoutes);
 
 module.exports = router;
-
