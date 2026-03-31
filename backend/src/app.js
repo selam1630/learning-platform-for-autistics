@@ -7,9 +7,27 @@ const { notFoundHandler, errorHandler } = require("./middleware/error.middleware
 
 const app = express();
 
+const isAllowedOrigin = (origin) => {
+  if (!origin) {
+    return true;
+  }
+
+  if (origin === env.clientUrl) {
+    return true;
+  }
+
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+};
+
 app.use(
   cors({
-    origin: env.clientUrl,
+    origin(origin, callback) {
+      if (isAllowedOrigin(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
   })
 );
 app.use(express.json());
@@ -26,4 +44,3 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 module.exports = app;
-

@@ -1,43 +1,39 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
-import '../../data/models/assistant_response.dart';
 import '../../data/models/dashboard_model.dart';
+import '../../data/models/onboarding_profile.dart';
 import '../../data/services/dashboard_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
     this.service,
+    required this.profile,
+    required this.onOpenLearning,
+    required this.onOpenAssistant,
+    required this.onOpenCommunity,
   });
 
   final DashboardService? service;
+  final OnboardingProfile profile;
+  final VoidCallback onOpenLearning;
+  final VoidCallback onOpenAssistant;
+  final VoidCallback onOpenCommunity;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final TextEditingController _questionController = TextEditingController(
-    text: 'My child is not speaking, what should I do?',
-  );
-
   late final DashboardService _service;
   late Future<DashboardModel> _dashboardFuture;
-  AssistantResponse? _assistantResponse;
-  bool _isAskingAssistant = false;
 
   @override
   void initState() {
     super.initState();
     _service = widget.service ?? DashboardService();
     _dashboardFuture = _service.fetchDashboard();
-  }
-
-  @override
-  void dispose() {
-    _questionController.dispose();
-    super.dispose();
   }
 
   Future<void> _refreshDashboard() async {
@@ -47,39 +43,11 @@ class _HomeScreenState extends State<HomeScreen> {
     await _dashboardFuture;
   }
 
-  Future<void> _askAssistant() async {
-    final question = _questionController.text.trim();
-    if (question.isEmpty) {
-      return;
-    }
-
-    setState(() {
-      _isAskingAssistant = true;
-    });
-
-    try {
-      final response = await _service.askAssistant(question);
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _assistantResponse = response;
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isAskingAssistant = false;
-        });
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ethiopia Autism Support'),
+        title: const Text('Home'),
       ),
       body: RefreshIndicator(
         color: AppColors.softGreen,
@@ -95,9 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
               return ListView(
                 padding: const EdgeInsets.all(24),
                 children: [
-                  _ErrorPanel(
-                    onRetry: _refreshDashboard,
-                  ),
+                  _ErrorPanel(onRetry: _refreshDashboard),
                 ],
               );
             }
@@ -107,45 +73,43 @@ class _HomeScreenState extends State<HomeScreen> {
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
               children: [
-                _HeroBanner(hero: dashboard.hero),
+                _HeroBanner(profile: widget.profile),
                 const SizedBox(height: 20),
                 const _SectionTitle(
-                  title: 'Learning Modules',
-                  subtitle: 'Start with simple visual lessons and routines.',
+                  title: 'Main Dashboard',
+                  subtitle: 'Choose one simple path and keep the experience predictable.',
                 ),
                 const SizedBox(height: 12),
-                ...dashboard.modules.map(_ModuleCard.new),
-                const SizedBox(height: 20),
+                _MainActionCard(
+                  color: AppColors.greenTint,
+                  icon: Icons.school_outlined,
+                  title: 'Learning',
+                  subtitle: 'Start child lessons in communication, emotions, and daily skills.',
+                  onTap: widget.onOpenLearning,
+                ),
+                const SizedBox(height: 12),
+                _MainActionCard(
+                  color: AppColors.blueTint,
+                  icon: Icons.smart_toy_outlined,
+                  title: 'Ask AI',
+                  subtitle: 'Get short step-by-step support for speech, routines, and meltdowns.',
+                  onTap: widget.onOpenAssistant,
+                ),
+                const SizedBox(height: 12),
+                _MainActionCard(
+                  color: AppColors.yellowTint,
+                  icon: Icons.people_outline,
+                  title: 'Community',
+                  subtitle: 'Read practical tips and shared experiences from parents.',
+                  onTap: widget.onOpenCommunity,
+                ),
+                const SizedBox(height: 24),
                 const _SectionTitle(
-                  title: 'Parent Community',
-                  subtitle: 'Shared encouragement and practical daily tips.',
+                  title: 'Today\'s Learning',
+                  subtitle: 'Quick modules recommended from your current starter plan.',
                 ),
                 const SizedBox(height: 12),
-                ...dashboard.communityPosts.map(_CommunityCard.new),
-                const SizedBox(height: 20),
-                const _SectionTitle(
-                  title: 'AI Parent Assistant',
-                  subtitle: 'Expert-reviewed prompts for common caregiver questions.',
-                ),
-                const SizedBox(height: 12),
-                _AssistantComposer(
-                  controller: _questionController,
-                  isLoading: _isAskingAssistant,
-                  onAsk: _askAssistant,
-                ),
-                if (_assistantResponse != null) ...[
-                  const SizedBox(height: 12),
-                  _AssistantResponseCard(response: _assistantResponse!),
-                ],
-                const SizedBox(height: 16),
-                ...dashboard.assistantGuidance.map(
-                  (guidance) => _PromptSuggestionCard(
-                    guidance: guidance,
-                    onTap: () {
-                      _questionController.text = guidance.question;
-                    },
-                  ),
-                ),
+                ...dashboard.modules.take(3).map(_ModulePreviewCard.new),
               ],
             );
           },
@@ -156,65 +120,56 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _HeroBanner extends StatelessWidget {
-  const _HeroBanner({required this.hero});
+  const _HeroBanner({required this.profile});
 
-  final HeroContent hero;
+  final OnboardingProfile profile;
+
+  String get languageLabel => profile.languageCode == 'am' ? 'Amharic' : 'English';
+
+  String get communicationLabel =>
+      profile.communicationLevel == 'non-verbal' ? 'Non-verbal' : 'Some words';
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
         gradient: const LinearGradient(
           colors: [AppColors.softGreen, AppColors.softBlue],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(30),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.14),
-              borderRadius: BorderRadius.circular(999),
+          const Text(
+            'Calm, safe, and encouraging learning',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              height: 1.15,
             ),
-            child: const Text(
-              'Offline-friendly support in Amharic',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            hero.title,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Colors.white,
-                  fontSize: 28,
-                ),
           ),
           const SizedBox(height: 12),
-          Text(
-            hero.subtitle,
-            style: const TextStyle(
+          const Text(
+            'Use a simple daily rhythm: learning, support, and community.',
+            style: TextStyle(
               color: Colors.white,
               fontSize: 16,
               height: 1.4,
             ),
           ),
-          const SizedBox(height: 18),
-          const Wrap(
+          const SizedBox(height: 16),
+          Wrap(
             spacing: 10,
             runSpacing: 10,
             children: [
-              _HeroPill(label: 'Lessons'),
-              _HeroPill(label: 'Community'),
-              _HeroPill(label: 'Assistant'),
+              _ProfilePill(label: 'Language: $languageLabel'),
+              _ProfilePill(label: 'Age: ${profile.childAge}'),
+              _ProfilePill(label: communicationLabel),
             ],
           ),
         ],
@@ -223,27 +178,24 @@ class _HeroBanner extends StatelessWidget {
   }
 }
 
-class _HeroPill extends StatelessWidget {
-  const _HeroPill({required this.label});
+class _ProfilePill extends StatelessWidget {
+  const _ProfilePill({required this.label});
 
   final String label;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.12),
+        color: Colors.white.withOpacity(0.18),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.18),
-        ),
       ),
       child: Text(
         label,
         style: const TextStyle(
           color: Colors.white,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -275,8 +227,76 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _ModuleCard extends StatelessWidget {
-  const _ModuleCard(this.module);
+class _MainActionCard extends StatelessWidget {
+  const _MainActionCard({
+    required this.color,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final Color color;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  icon,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(subtitle),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios_rounded, size: 18),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ModulePreviewCard extends StatelessWidget {
+  const _ModulePreviewCard(this.module);
 
   final LessonModule module;
 
@@ -287,42 +307,21 @@ class _ModuleCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: AppColors.greenTint,
+          color: AppColors.white,
           borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: AppColors.lightGray),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    module.title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                if (module.offlineReady)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.softGreen,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: const Text(
-                      'Offline Ready',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-              ],
+            Text(
+              module.title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               module.titleAm,
               style: const TextStyle(
@@ -333,201 +332,6 @@ class _ModuleCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(module.description),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CommunityCard extends StatelessWidget {
-  const _CommunityCard(this.post);
-
-  final CommunityPost post;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: AppColors.yellowTint,
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: const BoxDecoration(
-                    color: AppColors.warmYellow,
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    post.authorName.substring(0, 1).toUpperCase(),
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        post.authorName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        post.category.replaceAll('_', ' '),
-                        style: const TextStyle(
-                          color: AppColors.softCoral,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(post.content),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AssistantComposer extends StatelessWidget {
-  const _AssistantComposer({
-    required this.controller,
-    required this.isLoading,
-    required this.onAsk,
-  });
-
-  final TextEditingController controller;
-  final bool isLoading;
-  final VoidCallback onAsk;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: AppColors.blueTint,
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: Column(
-          children: [
-            TextField(
-              controller: controller,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'Ask about speech, routines, or meltdowns...',
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(18),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.softBlue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onPressed: isLoading ? null : onAsk,
-                child: Text(isLoading ? 'Thinking...' : 'Ask Assistant'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AssistantResponseCard extends StatelessWidget {
-  const _AssistantResponseCard({required this.response});
-
-  final AssistantResponse response;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Assistant Guidance',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(response.answer),
-            const SizedBox(height: 10),
-            Text(
-              response.safetyNote,
-              style: const TextStyle(
-                color: AppColors.softCoral,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PromptSuggestionCard extends StatelessWidget {
-  const _PromptSuggestionCard({
-    required this.guidance,
-    required this.onTap,
-  });
-
-  final AssistantGuidance guidance;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                guidance.question,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(guidance.answer),
-            ],
-          ),
         ),
       ),
     );
@@ -548,19 +352,21 @@ class _ErrorPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'We could not load the app data.',
+              'We could not load the home screen data.',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Please make sure the backend is running on http://127.0.0.1:5000 and try again.',
-            ),
+            const Text('Please make sure the backend is running and try again.'),
             const SizedBox(height: 12),
             FilledButton(
               onPressed: onRetry,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.softGreen,
+                foregroundColor: Colors.white,
+              ),
               child: const Text('Retry'),
             ),
           ],
